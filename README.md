@@ -18,8 +18,8 @@ Run the following command in the root directory of your Node-RED install
     siaConnects:
     {
        uri: "http://localhost:9980",
-       "walletPassword": "demo123",
-       "apipassword": "2147fd9bb6d4ebffb4044b1eaf78ce99"
+       walletPassword: "demo123",
+       apipassword: "2147fd9bb6d4ebffb4044b1eaf78ce99"
     }
 
 
