@@ -1,0 +1,179 @@
+<!--
+  Copyright 2018 Timvork Inc..
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<script type="text/x-red" data-template-name="sia">
+    <div class="form-row">
+      <label for="node-config-input-uri"><i class="icon-globe"></i> URI</label>
+      <input type="text" id="node-config-input-uri" placeholder="http://localhost:9980" />
+    </div>
+    <div class="form-row">
+      <label for="node-config-input-name"><i class="icon-tag"></i> Name</label>
+      <input type="text" id="node-config-input-name" placeholder="Name" />
+    </div>
+    <div class="form-row">
+      <label for="node-config-input-walletPassword"><i class="icon-lock"></i> Wallet Password</label>
+      <input type="password" id="node-config-input-walletPassword" />
+    </div>
+    <div class="form-row">
+      <label for="node-config-input-apipassword"><i class="icon-lock"></i> API Password</label>
+      <input type="password" id="node-config-input-apipassword" />
+    </div>
+  </script>
+  
+  <script type="text/javascript">
+      RED.nodes.registerType("sia", {
+          "category": "config",
+          "color": "#0a9fb3",
+          "defaults": {
+              "uri": {
+                  "value": ""
+              },
+              "name": {
+                  "value": ""
+              }
+          },
+          "credentials": {
+              "walletPassword": {
+                  "type": "password"
+              },
+              "apipassword": {
+                  "type": "password"
+              }
+          },
+          "label": function() {
+              return this.name || ('' + this.uri).replace(/^(\w+\:\/\/)([^\@]*\@)?/, '$1');
+          }
+      });
+  </script>
+  
+  <script type="text/x-red" data-template-name="sia in">
+    <div class="form-row">
+      <label for="node-input-service"><i class="icon-folder-close"></i> Service</label>
+      <select id="node-input-service">
+        <option value="" disabled></option>
+        <option value="_ext_">External service</option>
+      </select>
+    </div>
+    <div class="form-row hide" id="node-input-external-details">
+      <label for="node-input-configNode"><i class="icon-bookmark"></i> Sia Server</label>
+      <input type="text" id="node-input-configNode" />
+    </div>
+    <div class="form-row">
+      <label for="node-input-operation"><i class="fa fa-wrench"></i> Operation</label>
+      <select type="text" id="node-input-operation" style="display: inline-block; vertical-align: top;">
+        <option value="" id="node-input-dynamic-operation" style="font-style: italic;">Dynamic (msg.operation)</option>
+      </select>
+    </div>
+    <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name" />
+    </div>
+    <div class="form-tips" id="node-warning" style="display: none">
+      <b> Tip:</b> If no collection is set, ensure <b>msg.collection</b> will contain the collection name.
+    </div>
+  </script>
+  
+  <script type="text/x-red" data-help-name="sia in">
+      <p>Calls a Sia API based on the selected operator.</p>
+      <p>If <b>msg.payload</b> is an array, each element is passed as an arugment.</p>
+      <p>See the <a href="https://sia.tech/docs/" target="_blank"><i>Sia docs</i></a> for examples.</p>
+      <p>The result is returned in <b>msg.payload</b>.</p>
+  </script>
+  
+  <script type="text/javascript">
+      RED.nodes.registerType("sia in", {
+          category: "sia-input",
+          color: "#0a9fb3",
+          defaults: {
+              service: {
+                  value: "",
+                  required: true
+              },
+              configNode: {
+                  type: "sia",
+                  validate: function validateServer(v) {
+                      return this.service !== "_ext_" || v !== "_ADD_";
+                  }
+              },
+              name: {
+                  value: ""
+              },
+              operation: {
+                  value: ""
+              }
+          },
+          inputs: 1,
+          outputs: 1,
+          icon: "sia.png",
+          label: function label() {
+              var SiaConfigNode = RED.nodes.node(this.configNode);
+              if (this.name) {
+                  return this.name;
+              }
+              var serviceName = "sia";
+              if (this.service && this.service !== "_ext_") {
+                  serviceName = this.service;
+              } else if (SiaConfigNode) {
+                  serviceName = SiaConfigNode.label();
+              }
+              return serviceName + " " + this.collection + " " + this.operation;
+          },
+          labelStyle: function() {
+              return this.name ? "node_label_italic" : "";
+          },
+          oneditprepare: function oneditprepare() {
+              var serviceSelect = $('#node-input-service');
+              var node = this;
+              $.getJSON("sia/vcap", function(data) {
+                  var last = serviceSelect.children().last();
+                  var opts = data.map(function(d) {
+                      return $('<option></option>').attr('value', d.name).attr('selected', node.service === d.name).text(d.name).wrap('<p/>').parent().html();
+                  });
+                  if (opts.length === 0) {
+                      node.service = "_ext_";
+                      serviceSelect.find("option").filter(function() {
+                          return $(this).val() === node.service;
+                      }).attr('selected', true);
+                  } else {
+                      last.before(opts.join(""));
+                  }
+                  serviceSelect.change();
+              });
+              serviceSelect.change(function() {
+                  var service = serviceSelect.val();
+                  if (service === "_ext_") {
+                      $('#node-input-external-details').show();
+                  } else {
+                      $('#node-input-external-details').hide();
+                  }
+              });
+              var selectOperation = $('#node-input-operation');
+              $.getJSON("sia/operations", function(data) {
+                  selectOperation.children().last().after(data.map(function(d) {
+                      return $('<option></option>').attr('value', d).attr('selected', node.operation === d).text(d).wrap('<p/>').parent().html();
+                  }).join(""));
+                  if (data.indexOf(node.operation) < 0) {
+                      $('#node-input-dynamic-operation').attr('selected', true);
+                  }
+                  selectOperation.change();
+              });
+              $('#node-input-collection').change(function () {
+                  if($('#node-input-collection').val()) {
+                      $('#node-warning').hide();
+                  } else {
+                      $('#node-warning').show();
+                  }
+              });
+          }
+      });
+  </script>
