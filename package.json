@@ -1,0 +1,32 @@
+{
+  "name": "node-red-contrib-sia",
+  "version": "0.0.1",
+  "description": "Sia node for Node-RED",
+  "dependencies": {
+    "cfenv": "^1.2.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kunalkamble/node-red-contrib-sia"
+  },
+  "author": {
+    "name": "Kunal Kamble",
+    "email": "kunal6666@gmail.com"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "node-red",
+    "sia",
+    "api"
+  ],
+  "node-red": {
+    "nodes": {
+      "sia": "sia.js"
+    }
+  },
+  "jshintConfig": {
+    "undef": true,
+    "unused": true,
+    "node": true
+  }
+}
